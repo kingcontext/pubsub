@@ -41,6 +41,7 @@ import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.kafka.connect.sink.SinkTask;
+import org.apache.kafka.connect.storage.Converter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.threeten.bp.Duration;
@@ -66,6 +67,7 @@ public class CloudPubSubSinkTask extends SinkTask {
   private int maxTotalTimeoutMs;
   private boolean includeMetadata;
   private com.google.cloud.pubsub.v1.Publisher publisher;
+  private Converter converter;
 
   /** Holds a list of the publishing futures that have not been processed for a single partition. */
   private class OutstandingFuturesForPartition {
@@ -108,6 +110,11 @@ public class CloudPubSubSinkTask extends SinkTask {
         (Integer) validatedProps.get(CloudPubSubSinkConnector.MAX_TOTAL_TIMEOUT_MS);
     messageBodyName = (String) validatedProps.get(CloudPubSubSinkConnector.CPS_MESSAGE_BODY_NAME);
     includeMetadata = (Boolean) validatedProps.get(CloudPubSubSinkConnector.PUBLISH_KAFKA_METADATA);
+    Object converterClass = validatedProps.get(ConnectorUtils.CONVERTER_CLASS_CONFIG);
+    if (converterClass != null) {
+      converter = createConverter(converterClass.toString());
+      converter.configure(props, false);
+    }
     if (publisher == null) {
       // Only do this if we did not use the constructor.
       createPublisher();
@@ -122,7 +129,13 @@ public class CloudPubSubSinkTask extends SinkTask {
     for (SinkRecord record : sinkRecords) {
       log.trace("Received record: " + record.toString());
       Map<String, String> attributes = new HashMap<>();
-      ByteString value = handleValue(record.valueSchema(), record.value(), attributes);
+      ByteString value;
+      if (converter != null) {
+        value = ByteString.copyFrom(converter.fromConnectData(record.topic(), record.valueSchema(), record.value()));
+      }
+      else {
+        value = handleValue(record.valueSchema(), record.value(), attributes);
+      }
       if (record.key() != null) {
         String key = record.key().toString();
         attributes.put(ConnectorUtils.CPS_MESSAGE_KEY_ATTRIBUTE, key);
@@ -323,4 +336,16 @@ public class CloudPubSubSinkTask extends SinkTask {
 
   @Override
   public void stop() {}
+
+  private Converter createConverter(String converter) {
+    Class<Converter> formatClass = null;
+    try {
+      formatClass = (Class<Converter>) Class.forName(converter);
+      return formatClass.newInstance();
+    }
+    catch (ClassNotFoundException | IllegalAccessException | InstantiationException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
 }

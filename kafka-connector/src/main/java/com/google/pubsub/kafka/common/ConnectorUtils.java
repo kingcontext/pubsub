@@ -46,6 +46,7 @@ public class ConnectorUtils {
   public static final String KAFKA_PARTITION_ATTRIBUTE = "kafka.partition";
   public static final String KAFKA_OFFSET_ATTRIBUTE = "kafka.offset";
   public static final String KAFKA_TIMESTAMP_ATTRIBUTE = "kafka.timestamp";
+  public static final String CONVERTER_CLASS_CONFIG = "cps.data.converter";
 
   /** Return {@link io.grpc.Channel} which is used by Cloud Pub/Sub gRPC API's. */
   public static Channel getChannel() throws IOException {

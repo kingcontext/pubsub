@@ -143,7 +143,12 @@ public class CloudPubSubSinkConnector extends SinkConnector {
             DEFAULT_MESSAGE_BODY_NAME,
             Importance.MEDIUM,
             "When using a struct or map value schema, this field or key name indicates that the "
-                + "corresponding value will go into the Pub/Sub message body.");
+                + "corresponding value will go into the Pub/Sub message body.")
+        .define(ConnectorUtils.CONVERTER_CLASS_CONFIG,
+            Type.STRING,
+            null,
+            Importance.MEDIUM,
+            "Sink data format converter");
   }
 
   @Override
